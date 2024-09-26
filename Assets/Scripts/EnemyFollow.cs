@@ -1,43 +1,74 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.XR;
 using UnityEngine.XR.Interaction.Toolkit;
 
 public class EnemyFollow : MonoBehaviour
 {
-    // Referencia al XR Origin
     public GameObject xrOrigin;
-
-    // Velocidad a la que se moverá el enemigo
     public float speed = 2.0f;
-
-    // Distancia mínima a la que el enemigo se detiene del jugador
-    public float stopDistance = 1.0f;
+    public float stopDistance = 0f;
+    public XRBaseController leftController;
 
     private Transform playerCamera;
+    private Rigidbody rb;
+    private bool isDead = false;
 
     private void Start()
     {
-        // Buscamos la cámara en el XR Origin (que es el punto de vista del jugador)
         playerCamera = xrOrigin.GetComponentInChildren<Camera>().transform;
+        rb = GetComponent<Rigidbody>();
+        rb.useGravity = false;
     }
 
     private void Update()
     {
-        // Obtenemos la distancia entre el enemigo y la cámara del jugador
+        if (isDead)
+        {
+            // Si está muerto, no sigue al jugador
+            return;
+        }
+
         float distanceToPlayer = Vector3.Distance(transform.position, playerCamera.position);
 
-        // Si la distancia es mayor que la distancia mínima de parada, el enemigo se mueve hacia el jugador
         if (distanceToPlayer > stopDistance)
         {
-            // Calculamos la dirección hacia el jugador
             Vector3 direction = (playerCamera.position - transform.position).normalized;
-            
-            // Movemos al enemigo hacia el jugador
+            direction.y = 0;
+
             transform.position += direction * speed * Time.deltaTime;
             
-            // Orientamos al enemigo hacia el jugador
-            transform.LookAt(new Vector3(playerCamera.position.x, transform.position.y, playerCamera.position.z));
+            Vector3 lookAtPosition = new Vector3(playerCamera.position.x, transform.position.y, playerCamera.position.z);
+            transform.LookAt(lookAtPosition);
+        }
+        
+        DetectControllerInput();
+    }
+    private void DetectControllerInput()
+    {
+        InputDevice leftHandDevice = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
+
+        if (leftHandDevice.TryGetFeatureValue(CommonUsages.triggerButton, out bool triggerPressed) && triggerPressed)
+        {
+            Debug.Log("Has presionado el Gatillo");
+            KillEnemy();
         }
     }
+
+    private void KillEnemy()
+    {
+        if (!isDead)
+        {
+            isDead = true; 
+
+            rb.useGravity = true;
+            rb.isKinematic = false;
+            Debug.Log("El pibe esta muerto");
+
+            rb.AddForce(Vector3.down * 5f, ForceMode.Impulse);
+        }
+    }
+
 }
+
